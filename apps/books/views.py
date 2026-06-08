@@ -19,6 +19,7 @@ from apps.books.serializers import (
     CheckoutOrderSerializer
 )
 from apps.books.permissions import IsAdminOrReadOnly
+from apps.books.tasks import send_order_confirmation_email
 
 
 class AuthorViewSet(viewsets.ModelViewSet):
@@ -79,32 +80,34 @@ class OrderViewSet(viewsets.ModelViewSet):
         Validates stock availability and deducts stock atomically.
         Returns 201 with order data on success, 400 if stock is insufficient.
         """
+        serializer = CheckoutOrderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
         with transaction.atomic():
-            serializer = CheckoutOrderSerializer(data=request.data)
-            
-            if serializer.is_valid(raise_exception=True):
-                order = Order.objects.create(user=request.user)
+            order = Order.objects.create(user=request.user)
 
-                total_price = 0
-                for item in serializer.validated_data['items']:
-                    book = Book.objects.select_for_update().get(id=item['book'])
-                    if book.stock < item['quantity']:
-                        raise serializers.ValidationError(
-                            f'Недостатьно товару. Доступно {book.stock}.'
-                        )
-                    book.stock -= item['quantity']
-                    book.save()
+            total_price = 0
+            for item in serializer.validated_data['items']:
+                book = Book.objects.select_for_update().get(id=item['book'])
+                if book.stock < item['quantity']:
+                    raise serializers.ValidationError(
+                        f'Недостатьно товару. Доступно {book.stock}.'
+                )
+                book.stock -= item['quantity']
+                book.save()
 
-                    order_item = OrderItem.objects.create(
-                        order=order,
-                        book=book,
-                        quantity=item['quantity'],
-                        price=book.price # Snapshot price at the time of purchase
-                    )
+                order_item = OrderItem.objects.create(
+                    order=order,
+                    book=book,
+                    quantity=item['quantity'],
+                    price=book.price # Snapshot price at the time of purchase
+                )
 
-                    total_price += order_item.calculate_total_price()
+                total_price += order_item.calculate_total_price()
 
-                order.total_price = total_price
-                order.save()
+            order.total_price = total_price
+            order.save()
+
+        send_order_confirmation_email.delay(order_id=order.id)
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
