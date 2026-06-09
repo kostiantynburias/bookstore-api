@@ -1,25 +1,33 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
+
+User = get_user_model()
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    """Serializer for user registration. Accepts username, email and password."""
-    
+    """
+    Serializer for user registration using the CustomUser model.
+    """
+
     class Meta:
         model = User
-        fields = ['username', 'email', 'password']
+        fields = ['email', 'username', 'password', 'phone_number', 'avatar']
         extra_kwargs = {
-            'password': {'write_only': True},
-            'email': {'required': True}
+            'email': {'required': True},
+            'username': {'required': True},
+            'password': {'write_only': True, 'min_length': 8}
         }
 
     def validate_password(self, value):
-        """Ensure password is at least 8 characters long."""
+        """
+        Ensure the password meets the minimum length requirement.
+        """
         if len(value) < 8:
             raise serializers.ValidationError('Пароль має складатися мінімум з 8 символів.')
         return value
-    
+
     def create(self, validated_data):
-        """Create and return a new user with hashed password."""
-        user = User.objects.create_user(**validated_data)
-        return user
+        """
+        Create and return a new CustomUser instance with a securely hashed password.
+        """
+        return User.objects.create_user(**validated_data)
