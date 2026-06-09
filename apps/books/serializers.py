@@ -62,6 +62,7 @@ class OrderSerializer(serializers.ModelSerializer):
     """Serializer for Order model."""
 
     order_items = OrderItemSerializer(many=True, read_only=True)
+    user = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -69,12 +70,10 @@ class OrderSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'total_price', 'user']
 
 
-class CheckoutItemSerializer(serializers.BaseSerializer):
-
+class CheckoutItemSerializer(serializers.Serializer):
     book = serializers.IntegerField()
     quantity = serializers.IntegerField(min_value=1)
 
 
-class CheckoutOrderSerializer(serializers.BaseSerializer):
-
+class CheckoutOrderSerializer(serializers.Serializer):
     items = CheckoutItemSerializer(many=True)

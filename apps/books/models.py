@@ -1,7 +1,8 @@
-
 from django.db import models
-from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class Author(models.Model):
@@ -35,6 +36,10 @@ class Book(models.Model):
 
     def __str__(self):
         return self.title
+    
+    class Meta:
+        verbose_name = 'Книга'
+        verbose_name_plural = 'Книги'
     
 
 class Order(models.Model):

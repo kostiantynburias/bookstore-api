@@ -69,8 +69,20 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return orders based on user role."""
         if self.request.user.is_staff:
-            return Order.objects.prefetch_related('order_items')
-        return Order.objects.prefetch_related('order_items').filter(user=self.request.user)
+            return Order.objects.prefetch_related('order_items__book', 'user')
+        return Order.objects.prefetch_related('order_items__book', 'user').filter(user=self.request.user)
+    
+    def get_permissions(self):
+        """
+        Dynamically determine the permissions required for the current action.
+        
+        Restricts data-modifying actions (update, partial_update, destroy) 
+        to staff/admin users only. Other actions inherit the default 
+        permission classes (e.g., IsAuthenticated).
+        """
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAdminUser()]
+        return super().get_permissions()
 
     @action(detail=False, methods=['post'])
     def checkout(self, request):
@@ -88,11 +100,15 @@ class OrderViewSet(viewsets.ModelViewSet):
 
             total_price = 0
             for item in serializer.validated_data['items']:
-                book = Book.objects.select_for_update().get(id=item['book'])
+                try:
+                    book = Book.objects.select_for_update().get(id=item['book'])
+                except Book.DoesNotExist:
+                    raise serializers.ValidationError({"error": f"Книгу з ID {item['book']} не знайдено."})
+
                 if book.stock < item['quantity']:
                     raise serializers.ValidationError(
-                        f'Недостатьно товару. Доступно {book.stock}.'
-                )
+                        {"stock": f"Недостатньо товару '{book.title}'. Доступно: {book.stock}."}
+                    )
                 book.stock -= item['quantity']
                 book.save()
 
@@ -110,4 +126,5 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         send_order_confirmation_email.delay(order_id=order.id)
 
-        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+        full_order = Order.objects.prefetch_related('order_items__book', 'user').get(id=order.id)
+        return Response(OrderSerializer(full_order).data, status=status.HTTP_201_CREATED)
