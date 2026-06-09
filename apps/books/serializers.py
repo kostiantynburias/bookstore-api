@@ -47,33 +47,59 @@ class BookSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         representation['author'] = AuthorNestedSerializer(instance.author).data
         return representation
+    
+
+class BookNestedSerializer(serializers.ModelSerializer):
+    """Light serializer for displaying book inside order items."""
+    class Meta:
+        model = Book
+        fields = ['id', 'title', 'price']
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
     """Serializer for OrderItem model."""
-
     class Meta:
         model = OrderItem
         fields = ['id', 'book', 'quantity', 'price']
         read_only_fields = ['id', 'price']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['book'] = BookNestedSerializer(instance.book).data
+        return representation
 
 
 class OrderSerializer(serializers.ModelSerializer):
     """Serializer for Order model."""
 
     order_items = OrderItemSerializer(many=True, read_only=True)
-    user = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = ['id', 'user', 'status', 'total_price', 'created_at', 'order_items']
         read_only_fields = ['id', 'created_at', 'total_price', 'user']
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if instance.user:
+            representation['user'] = instance.user.username
+        else:
+            representation['user'] = "Anonymous / Deleted User"
+            
+        return representation
+
 
 class CheckoutItemSerializer(serializers.Serializer):
-    book = serializers.IntegerField()
+    """Serializer for a single item within the checkout payload."""
+
+    book = serializers.PrimaryKeyRelatedField(queryset=Book.objects.all())
     quantity = serializers.IntegerField(min_value=1)
 
 
 class CheckoutOrderSerializer(serializers.Serializer):
+    """
+    Serializer for the entire checkout request.
+    Validates a list of items with their respective quantities before processing.
+    """
+
     items = CheckoutItemSerializer(many=True)
