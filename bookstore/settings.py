@@ -48,6 +48,7 @@ THIRD_PARTY_APPS = [
     'rest_framework_simplejwt',
     'django_filters',
     'django_celery_beat',
+    'drf_spectacular',
     'django_cleanup.apps.CleanupConfig', 
 ]
 
@@ -148,7 +149,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
+# DRF Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -169,6 +170,16 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# Swagger Configuration
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Book Store Pro API',
+    'DESCRIPTION': 'API for book marketplace',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
 }
 
 # Celery Configuration
