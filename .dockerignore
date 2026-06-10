@@ -1,0 +1,9 @@
+.git
+.venv
+__pycache__/
+*.pyc
+.env
+celerybeat-schedule.bak
+celerybeat-schedule.dat
+celerybeat-schedule.dir
+media/

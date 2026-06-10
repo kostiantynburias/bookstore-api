@@ -17,6 +17,7 @@ class Author(models.Model):
     class Meta:
         verbose_name = 'Автор'
         verbose_name_plural = 'Автори'
+        ordering = ['id']
 
 
 class Book(models.Model):

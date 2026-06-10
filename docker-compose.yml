@@ -1,0 +1,124 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:17-alpine
+    container_name: bookstore_db
+    environment:
+      POSTGRES_DB: bookstore
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bookstore_network
+
+  # Redis Cache and Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: bookstore_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bookstore_network
+
+  # Django Web Application
+  web:
+    build: .
+    container_name: bookstore_web
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      PYTHONUNBUFFERED: 1
+      DEBUG: "True"
+      SECRET_KEY: dev-secret-key-change-in-production
+      DB_NAME: bookstore
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: db
+      DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - bookstore_network
+    restart: unless-stopped
+
+  # Celery Worker
+  celery_worker:
+    build: .
+    container_name: bookstore_celery_worker
+    command: celery -A bookstore worker --loglevel=info
+    environment:
+      PYTHONUNBUFFERED: 1
+      DEBUG: "True"
+      SECRET_KEY: dev-secret-key-change-in-production
+      DB_NAME: bookstore
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: db
+      DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+      - web
+    networks:
+      - bookstore_network
+    restart: unless-stopped
+
+  # Celery Beat (Scheduler)
+  celery_beat:
+    build: .
+    container_name: bookstore_celery_beat
+    command: celery -A bookstore beat --loglevel=info
+    environment:
+      PYTHONUNBUFFERED: 1
+      DEBUG: "True"
+      SECRET_KEY: dev-secret-key-change-in-production
+      DB_NAME: bookstore
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: db
+      DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+      - web
+    networks:
+      - bookstore_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  bookstore_network:
+    driver: bridge
