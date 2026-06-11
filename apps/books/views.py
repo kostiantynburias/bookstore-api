@@ -72,7 +72,7 @@ class BookViewSet(viewsets.ModelViewSet):
     Queryset uses select_related to avoid N+1 problem on author field.
     """
 
-    queryset = Book.objects.select_related('author')
+    queryset = Book.objects.select_related('author').order_by('id')
     serializer_class = BookSerializer
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter]

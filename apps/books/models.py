@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.contrib.auth import get_user_model
@@ -29,7 +30,7 @@ class Book(models.Model):
     price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        validators=[MinValueValidator(0.01)]
+        validators=[MinValueValidator(Decimal('0.01'))]
     )
     stock = models.PositiveIntegerField(default=0)
     cover = models.ImageField(upload_to='book_covers/')
@@ -62,6 +63,7 @@ class Order(models.Model):
     class Meta:
         verbose_name = 'Замовлення'
         verbose_name_plural = 'Замовлення'
+        ordering = ['-created_at']
     
 
 class OrderItem(models.Model):
@@ -82,3 +84,4 @@ class OrderItem(models.Model):
     class Meta:
         verbose_name = 'Товар у замовленні'
         verbose_name_plural = 'Товари у замовленні'
+        ordering = ['id']
