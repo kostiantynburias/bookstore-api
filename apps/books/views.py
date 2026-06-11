@@ -52,7 +52,7 @@ class AuthorViewSet(viewsets.ModelViewSet):
         queryset = Author.objects.annotate(
             books_count=Count('books'),
             average_book_price=Avg('books__price')
-        )
+        ).order_by('id')
         return queryset
 
 
